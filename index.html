@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Testing con IA - Presentation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;700&family=Space+Grotesk:wght@300;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --bg-deep: #020617;
+            --bg-card: #0b1120;
+            --accent-blue: #38bdf8;
+            --accent-green: #deff9a;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --text-muted: #cbd5e1;
+            --border: #334155;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            font-family: 'Urbanist', sans-serif;
+            overflow-x: hidden;
+        }
+
+        .presentation-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 50px;
+            padding: 50px 0;
+        }
+
+        .slide {
+            width: 1280px;
+            height: 720px;
+            background-color: var(--bg-card);
+            border-radius: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            padding: 60px;
+            flex-shrink: 0;
+            border: 1px solid var(--border);
+        }
+
+        /* Decorative background elements */
+        .slide::before {
+            content: ''; position: absolute; top: -10%; right: -10%; width: 500px; height: 500px;
+            background: radial-gradient(circle, rgba(56, 189, 248, 0.08) 0%, transparent 70%); z-index: 0;
+        }
+        .slide::after {
+            content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 6px;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-green)); z-index: 2;
+        }
+
+        .slide > * { position: relative; z-index: 1; }
+
+        h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
+
+        h1 {
+            font-size: 82px; font-weight: 700; line-height: 1.1;
+            background: linear-gradient(to right, #ffffff, var(--accent-blue));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            text-align: center;
+        }
+
+        .slide-title { font-size: 48px; font-weight: 700; margin-bottom: 40px; color: var(--accent-green); }
+
+        h3 { font-size: 32px; color: var(--accent-blue); margin-bottom: 15px; }
+
+        p { font-size: 22px; line-height: 1.6; color: var(--text-muted); }
+
+        .subtitle { font-size: 26px; color: var(--text-dim); margin-top: 20px; text-align: center; }
+
+        /* Layouts */
+        .content-center {
+            height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+
+        .grid-2 {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; margin-top: auto; margin-bottom: auto;
+        }
+
+        .price-tag {
+            display: inline-block; padding: 10px 20px; background: rgba(222, 255, 154, 0.1);
+            border: 1px solid var(--accent-green); color: var(--accent-green);
+            border-radius: 50px; font-weight: 700; font-size: 20px; margin-top: 20px;
+        }
+
+        .image-box {
+            border-radius: 16px; overflow: hidden; border: 1px solid var(--border);
+            height: 400px; background: #010409; display: flex; align-items: center; justify-content: center;
+        }
+
+        .image-box i { font-size: 100px; color: var(--border); }
+
+        /* Table */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; border-radius: 12px; overflow: hidden; }
+        th, td { padding: 25px; text-align: left; border-bottom: 1px solid var(--border); font-size: 20px; }
+        th { background: #1e293b; color: var(--accent-green); font-weight: 700; }
+        td { background: #0f172a; }
+
+        /* List */
+        .feature-list { list-style: none; }
+        .feature-list li { margin-bottom: 30px; padding-left: 50px; position: relative; font-size: 24px; }
+        .feature-list li i { position: absolute; left: 0; top: 5px; color: var(--accent-green); }
+
+        /* Responsive Label */
+        .nav-hint {
+            position: fixed; bottom: 20px; right: 20px; background: rgba(0,0,0,0.5);
+            padding: 10px 20px; border-radius: 30px; font-size: 14px; color: var(--text-dim);
+            backdrop-filter: blur(5px); z-index: 100;
+        }
+
+        @media (max-width: 1300px) {
+            .slide { width: 95vw; height: auto; min-height: 500px; padding: 40px 20px; }
+            h1 { font-size: 48px; }
+            .grid-2 { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="nav-hint">Scroll para ver las diapositivas</div>
+
+    <div class="presentation-wrapper">
+
+        <!-- Slide 1: Cover -->
+        <section class="slide">
+            <div class="content-center">
+                <div style="font-size: 18px; color: var(--accent-blue); letter-spacing: 5px; margin-bottom: 20px;">CHAPTER FRONTEND</div>
+                <h1>Testing con IA</h1>
+                <p class="subtitle">Casos de Uso y Análisis de Costos 2026</p>
+                <div style="margin-top: 60px; font-weight: 500;">Presentado por: [Tu Nombre]</div>
+            </div>
+        </section>
+
+        <!-- Slide 2: Playwright -->
+        <section class="slide">
+            <h2 class="slide-title">01. Playwright: La Base</h2>
+            <div class="grid-2">
+                <div>
+                    <h3>Caso de Uso</h3>
+                    <p>Infraestructura base para E2E. Automatización de flujos críticos (Happy Paths) con máxima velocidad y control total del código.</p>
+                    <div class="price-tag">Costo: $0 (Open Source)</div>
+                </div>
+                <div class="image-box">
+                    <i class="fa-solid fa-code"></i>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 3: Momentic -->
+        <section class="slide">
+            <h2 class="slide-title">02. Momentic: Agente IA</h2>
+            <div class="grid-2">
+                <div>
+                    <h3>Caso de Uso</h3>
+                    <p>Eliminación del mantenimiento manual. La IA navega como un humano, permitiendo que los tests no se rompan ante cambios menores de DOM.</p>
+                    <div class="price-tag">Costo: Desde $49/mes</div>
+                </div>
+                <div class="image-box">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 4: Applitools -->
+        <section class="slide">
+            <h2 class="slide-title">03. Applitools: Visión</h2>
+            <div class="grid-2">
+                <div>
+                    <h3>Caso de Uso</h3>
+                    <p>Regresión visual inteligente. Valida que la UI se vea perfecta en todas las resoluciones, detectando desalineaciones imperceptibles para el código.</p>
+                    <div class="price-chip" style="margin-top:20px; border: 1px solid var(--accent-blue); color: var(--accent-blue); padding: 10px 20px; border-radius: 50px; display: inline-block;">Plan Gratuito: 100 checks/mes</div>
+                </div>
+                <div class="image-box">
+                    <i class="fa-solid fa-eye"></i>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 5: Comparativa -->
+        <section class="slide">
+            <h2 class="slide-title">Comparativa de Inversión</h2>
+            <div style="margin-top: 20px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Herramienta</th>
+                            <th>Valor Principal</th>
+                            <th>Inversión Inicial</th>
+                            <th>Mantenimiento</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Playwright</strong></td>
+                            <td>Control y Estándar</td>
+                            <td>$0</td>
+                            <td>Alto (Código)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Momentic</strong></td>
+                            <td>Self-healing</td>
+                            <td>$49/mes</td>
+                            <td>Casi nulo (IA)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Applitools</strong></td>
+                            <td>Calidad Visual</td>
+                            <td>Freemium</td>
+                            <td>Bajo</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Slide 6: Roadmap -->
+        <section class="slide">
+            <h2 class="slide-title">Siguientes Pasos</h2>
+            <ul class="feature-list" style="margin-top: 40px;">
+                <li><i class="fa-solid fa-circle-check"></i> <strong>Migrar a Playwright:</strong> Abandonar frameworks legados por velocidad.</li>
+                <li><i class="fa-solid fa-circle-check"></i> <strong>Prueba Visual:</strong> Integrar Applitools en el flujo de Pull Requests.</li>
+                <li><i class="fa-solid fa-circle-check"></i> <strong>Explorar Momentic:</strong> Piloto en el flujo de Checkout para medir ahorro de tiempo.</li>
+            </ul>
+        </section>
+
+        <!-- Slide 7: Q&A -->
+        <section class="slide">
+            <div class="content-center">
+                <h2 style="font-size: 72px; margin-bottom: 20px;">¿Dudas?</h2>
+                <p style="color: var(--accent-blue); font-size: 28px;">Gracias por su tiempo.</p>
+                <div style="margin-top: 80px; display: flex; gap: 30px;">
+                    <i class="fa-brands fa-github" style="font-size: 40px;"></i>
+                    <i class="fa-brands fa-linkedin" style="font-size: 40px;"></i>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+</body>
+</html>
