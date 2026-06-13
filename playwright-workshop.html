@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Playwright Workshop</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green: #45BA4B;
+    --green-dim: #2d7a32;
+    --green-glow: rgba(69,186,75,0.18);
+    --bg: #0a0a0a;
+    --bg2: #111118;
+    --bg3: #1a1a26;
+    --surface: #16161f;
+    --border: #252535;
+    --text: #e8e8f0;
+    --text-dim: #7a7a9a;
+    --white: #f4f4fa;
+    --red: #ff5f57;
+    --yellow: #febc2e;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Inter', sans-serif;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    overflow: hidden;
+  }
+
+  /* ── SLIDE SYSTEM ── */
+  .deck { width: 100vw; height: 100vh; position: relative; }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    justify-content: center; align-items: center;
+    padding: 60px 80px;
+    opacity: 0; pointer-events: none;
+    transition: opacity .4s ease;
+    overflow: hidden;
+  }
+  .slide.active { opacity: 1; pointer-events: all; }
+
+  /* ── PROGRESS ── */
+  #progress-bar {
+    position: fixed; top: 0; left: 0; height: 3px;
+    background: var(--green); transition: width .4s ease; z-index: 100;
+  }
+  #slide-counter {
+    position: fixed; bottom: 28px; right: 36px;
+    font-family: var(--mono); font-size: 12px; color: var(--text-dim);
+    z-index: 100;
+  }
+  #nav-hint {
+    position: fixed; bottom: 28px; left: 36px;
+    font-size: 12px; color: var(--text-dim); z-index: 100;
+  }
+
+  /* ── SHARED COMPONENTS ── */
+  .eyebrow {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .2em;
+    text-transform: uppercase; color: var(--green);
+    margin-bottom: 20px;
+  }
+  .slide-title {
+    font-family: var(--mono); font-weight: 700;
+    font-size: clamp(28px, 3.5vw, 52px);
+    line-height: 1.1; color: var(--white);
+    margin-bottom: 24px;
+  }
+  .slide-title .accent { color: var(--green); }
+  .lead {
+    font-size: clamp(14px, 1.4vw, 18px); line-height: 1.7;
+    color: var(--text-dim); max-width: 680px; text-align: center;
+  }
+
+  /* ── GRID LAYOUT ── */
+  .two-col {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 40px; width: 100%; max-width: 1100px;
+    align-items: start;
+  }
+  .three-col {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 28px; width: 100%; max-width: 1100px;
+  }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 28px;
+  }
+  .card.glow { border-color: var(--green-dim); box-shadow: 0 0 24px var(--green-glow); }
+  .card h3 {
+    font-family: var(--mono); font-size: 15px; font-weight: 600;
+    color: var(--white); margin-bottom: 10px; display: flex; align-items: center; gap: 10px;
+  }
+  .card p { font-size: 13.5px; line-height: 1.65; color: var(--text-dim); }
+
+  /* ── CODE BLOCK ── */
+  .code-block {
+    background: #0d0d15; border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden; width: 100%;
+  }
+  .code-block .bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px; background: #141420; border-bottom: 1px solid var(--border);
+  }
+  .code-block .bar .dot {
+    width: 12px; height: 12px; border-radius: 50%;
+  }
+  .code-block .bar .dot:nth-child(1) { background: var(--red); }
+  .code-block .bar .dot:nth-child(2) { background: var(--yellow); }
+  .code-block .bar .dot:nth-child(3) { background: var(--green); }
+  .code-block .bar span {
+    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+    margin-left: 8px;
+  }
+  .code-block pre {
+    padding: 20px 24px; font-family: var(--mono); font-size: 13px;
+    line-height: 1.7; overflow-x: auto; color: var(--text);
+  }
+  .code-block pre .cmd { color: var(--green); }
+  .code-block pre .cmt { color: #4a4a6a; }
+  .code-block pre .str { color: #f0a050; }
+  .code-block pre .kw { color: #c792ea; }
+  .code-block pre .fn { color: #82aaff; }
+  .code-block pre .num { color: #f78c6c; }
+
+  /* ── BADGE ── */
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 12px; border-radius: 20px;
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    background: var(--green-glow); color: var(--green);
+    border: 1px solid var(--green-dim);
+  }
+
+  /* ── STEP LIST ── */
+  .steps { list-style: none; width: 100%; max-width: 720px; }
+  .steps li {
+    display: flex; align-items: flex-start; gap: 18px;
+    padding: 16px 0; border-bottom: 1px solid var(--border);
+  }
+  .steps li:last-child { border-bottom: none; }
+  .step-num {
+    font-family: var(--mono); font-size: 12px; color: var(--green);
+    background: var(--green-glow); border: 1px solid var(--green-dim);
+    border-radius: 6px; padding: 3px 9px; flex-shrink: 0; margin-top: 2px;
+  }
+  .steps li div strong { font-size: 14px; color: var(--white); display: block; margin-bottom: 4px; }
+  .steps li div span { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+
+  /* ── FILE TREE ── */
+  .tree {
+    font-family: var(--mono); font-size: 13px; line-height: 2;
+    color: var(--text-dim);
+  }
+  .tree .folder { color: var(--white); font-weight: 600; }
+  .tree .highlight { color: var(--green); font-weight: 600; }
+  .tree .note { color: #4a4a6a; font-size: 11px; }
+
+  /* ── FEATURE PILL ── */
+  .pills { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 24px; }
+  .pill {
+    padding: 8px 18px; border-radius: 24px; font-size: 13px;
+    border: 1px solid var(--border); color: var(--text-dim);
+    background: var(--surface);
+  }
+  .pill.lit { border-color: var(--green-dim); color: var(--green); background: var(--green-glow); }
+
+  /* ── COMPARISON TABLE ── */
+  .compare-table { width: 100%; max-width: 900px; border-collapse: collapse; font-size: 13.5px; }
+  .compare-table th {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
+    text-transform: uppercase; padding: 12px 20px;
+    background: var(--surface); color: var(--text-dim);
+    text-align: left; border-bottom: 1px solid var(--border);
+  }
+  .compare-table td {
+    padding: 13px 20px; border-bottom: 1px solid var(--border); color: var(--text-dim);
+  }
+  .compare-table tr:hover td { background: var(--surface); }
+  .compare-table td:first-child { color: var(--white); font-weight: 500; }
+  .yes { color: var(--green); font-weight: 600; }
+  .no { color: #ff5f57; }
+  .partial { color: var(--yellow); }
+
+  /* ── HERO TERMINAL ── */
+  #hero-terminal {
+    font-family: var(--mono); font-size: clamp(14px, 1.6vw, 22px);
+    color: var(--green); margin-top: 32px;
+  }
+  #hero-terminal .prompt { color: var(--text-dim); }
+  #typed-text { color: var(--green); }
+  .cursor {
+    display: inline-block; width: 2px; height: 1.1em;
+    background: var(--green); vertical-align: text-bottom;
+    animation: blink 1s step-end infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ── SLIDE-SPECIFIC ── */
+
+  /* S1 – Hero */
+  #s1 { text-align: center; gap: 8px; }
+  #s1 .logo-wrap { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+  #s1 .pw-logo {
+    width: 64px; height: 64px;
+    background: var(--green); border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 28px; font-weight: 700; color: #000;
+  }
+  #s1 .pw-name {
+    font-family: var(--mono); font-size: clamp(36px, 5vw, 72px);
+    font-weight: 700; color: var(--white);
+  }
+  #s1 .subtitle {
+    font-size: clamp(14px, 1.5vw, 20px); color: var(--text-dim);
+    max-width: 560px; line-height: 1.6;
+  }
+  .bg-grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 20%, transparent 80%);
+    opacity: .35;
+  }
+
+  /* S2 – Problem */
+  #s2 { align-items: flex-start; gap: 0; }
+  #s2 .content { width: 100%; max-width: 1100px; }
+  .problem-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 28px; }
+  .problem-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px;
+  }
+  .problem-card .icon { font-size: 28px; margin-bottom: 12px; }
+  .problem-card h3 { font-size: 14px; font-weight: 600; color: var(--white); margin-bottom: 8px; }
+  .problem-card p { font-size: 13px; line-height: 1.6; color: var(--text-dim); }
+
+  /* S5 – Codegen */
+  .codegen-flow {
+    display: flex; align-items: center; gap: 16px;
+    width: 100%; max-width: 900px; margin-top: 12px;
+  }
+  .flow-step {
+    flex: 1; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 20px 16px; text-align: center;
+  }
+  .flow-step .icon { font-size: 30px; margin-bottom: 10px; }
+  .flow-step h4 { font-family: var(--mono); font-size: 12px; color: var(--white); margin-bottom: 6px; }
+  .flow-step p { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+  .flow-arrow { font-size: 22px; color: var(--green); flex-shrink: 0; }
+
+  /* S8 – Tips */
+  .tips-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; width: 100%; max-width: 1000px; }
+  .tip-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 22px;
+  }
+  .tip-card .tip-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .tip-card .tip-icon { font-size: 22px; }
+  .tip-card h3 { font-size: 14px; font-weight: 600; color: var(--white); }
+  .tip-card p { font-size: 13px; line-height: 1.6; color: var(--text-dim); }
+
+  /* Animations */
+  .slide.active .card,
+  .slide.active .problem-card,
+  .slide.active .tip-card,
+  .slide.active .flow-step,
+  .slide.active .steps li {
+    animation: fadeUp .4s ease both;
+  }
+  .slide.active .card:nth-child(2), .slide.active .problem-card:nth-child(2), .slide.active .tip-card:nth-child(2) { animation-delay:.07s; }
+  .slide.active .card:nth-child(3), .slide.active .problem-card:nth-child(3), .slide.active .tip-card:nth-child(3) { animation-delay:.14s; }
+  .slide.active .card:nth-child(4), .slide.active .tip-card:nth-child(4) { animation-delay:.21s; }
+  .slide.active .steps li:nth-child(2) { animation-delay:.07s; }
+  .slide.active .steps li:nth-child(3) { animation-delay:.14s; }
+  .slide.active .steps li:nth-child(4) { animation-delay:.21s; }
+  .slide.active .flow-step:nth-child(3) { animation-delay:.07s; }
+  .slide.active .flow-step:nth-child(5) { animation-delay:.14s; }
+
+  @keyframes fadeUp {
+    from { opacity:0; transform: translateY(20px); }
+    to   { opacity:1; transform: translateY(0); }
+  }
+
+  /* Section header slide */
+  .section-slide { background: var(--bg2); text-align: center; }
+  .section-slide .big-num {
+    font-family: var(--mono); font-size: 120px; font-weight: 700;
+    color: var(--border); line-height: 1; margin-bottom: -20px;
+    position: relative; z-index: 0;
+  }
+  .section-slide .section-title {
+    font-family: var(--mono); font-size: clamp(28px, 4vw, 56px);
+    font-weight: 700; color: var(--white); position: relative; z-index: 1;
+  }
+  .section-slide .section-title span { color: var(--green); }
+
+</style>
+</head>
+<body>
+
+<div id="progress-bar"></div>
+<div id="slide-counter"></div>
+<div id="nav-hint">← → para navegar &nbsp;|&nbsp; ESC para índice</div>
+
+<!-- ═══════════════════════ SLIDE INDEX (OVERLAY) ═══════════════════════ -->
+<div id="index-overlay" style="
+  display:none; position:fixed; inset:0; background:rgba(10,10,10,.97);
+  z-index:200; padding:60px 80px; overflow-y:auto;
+">
+  <div style="max-width:800px; margin:0 auto;">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--green);text-transform:uppercase;margin-bottom:24px;">Índice de diapositivas</div>
+    <div id="index-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <div style="margin-top:32px;font-size:13px;color:var(--text-dim);">Presiona <kbd style="background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-family:var(--mono);font-size:11px;">ESC</kbd> para cerrar</div>
+  </div>
+</div>
+
+<div class="deck" id="deck">
+
+<!-- ─── S1: HERO ─── -->
+<section class="slide" id="s1" data-title="Introducción a Playwright">
+  <div class="bg-grid"></div>
+  <div class="logo-wrap">
+    <div class="pw-logo">▶</div>
+    <div class="pw-name">Playwright</div>
+  </div>
+  <p class="subtitle">Testing end-to-end moderno para aplicaciones web — confiable, rápido y sin dolor de cabeza.</p>
+  <div id="hero-terminal">
+    <span class="prompt">$ </span><span id="typed-text"></span><span class="cursor"></span>
+  </div>
+  <div class="pills" style="margin-top:36px;">
+    <span class="pill lit">Multi-browser</span>
+    <span class="pill lit">Auto-wait</span>
+    <span class="pill lit">Codegen</span>
+    <span class="pill lit">Trace Viewer</span>
+    <span class="pill">Microsoft OSS</span>
+    <span class="pill">TypeScript first</span>
+  </div>
+</section>
+
+<!-- ─── S2: EL PROBLEMA ─── -->
+<section class="slide" id="s2" data-title="El Problema: testing frontend es difícil">
+  <div class="content">
+    <div class="eyebrow">El Problema</div>
+    <div class="slide-title">Testing frontend<br>es <span class="accent">doloroso</span> por defecto</div>
+    <div class="problem-grid">
+      <div class="problem-card">
+        <div class="icon">🌐</div>
+        <h3>Multi-browser es una pesadilla</h3>
+        <p>Chromium, Firefox y Safari se comportan diferente. Reproducir bugs cross-browser manualmente escala fatal.</p>
+      </div>
+      <div class="problem-card">
+        <div class="icon">⏳</div>
+        <h3>Timing y race conditions</h3>
+        <p>Los tests fallan intermitentemente por <code style="font-family:var(--mono);font-size:12px;color:var(--green)">sleep()</code> hardcodeados o elementos que aún no existen en el DOM.</p>
+      </div>
+      <div class="problem-card">
+        <div class="icon">🔧</div>
+        <h3>Setup complejo</h3>
+        <p>Selenium requiere WebDriver, ChromeDriver, bindings... demasiada infraestructura antes de escribir el primer test.</p>
+      </div>
+      <div class="problem-card">
+        <div class="icon">🐌</div>
+        <h3>Tests lentos</h3>
+        <p>Cypress corre en el mismo contexto del browser — no puede manejar múltiples tabs, iframes ni contextos de autenticación independientes.</p>
+      </div>
+      <div class="problem-card">
+        <div class="icon">👁️</div>
+        <h3>Debugging opaco</h3>
+        <p>Cuando un test falla en CI, sin capturas, sin red log, sin DOM snapshot — es prácticamente imposible saber qué pasó.</p>
+      </div>
+      <div class="problem-card" style="border-color:var(--green-dim);box-shadow:0 0 20px var(--green-glow);">
+        <div class="icon">✅</div>
+        <h3 style="color:var(--green)">Playwright resuelve todo esto</h3>
+        <p>Un framework que nació aprendiendo de los errores de sus predecesores, construido por el equipo de Chromium en Microsoft.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── S3: QUÉ ES ─── -->
+<section class="slide" id="s3" data-title="¿Qué es Playwright?">
+  <div class="eyebrow">¿Qué es?</div>
+  <div class="slide-title" style="text-align:center;">Un framework de testing<br><span class="accent">end-to-end</span> que controla browsers reales</div>
+  <div class="three-col" style="margin-top:32px;max-width:1000px;">
+    <div class="card">
+      <h3>🦊 Multi-browser nativo</h3>
+      <p>Chromium, Firefox y WebKit (Safari) con la misma API. Un test, tres browsers. Incluye sus binarios — nada que instalar aparte.</p>
+    </div>
+    <div class="card glow">
+      <h3>⚡ Auto-wait inteligente</h3>
+      <p>Playwright espera automáticamente que cada elemento sea visible, habilitado y estable antes de interactuar. Cero <code style="font-family:var(--mono);font-size:11px;color:var(--green)">sleep()</code> manuales.</p>
+    </div>
+    <div class="card">
+      <h3>🔀 Paralelo por defecto</h3>
+      <p>Corre tests en paralelo sobre múltiples workers. Los contextos de browser son aislados, rápidos y no comparten estado.</p>
+    </div>
+    <div class="card">
+      <h3>📡 Network interception</h3>
+      <p>Intercepta, modifica o mockea llamadas HTTP/HTTPS en tiempo real. Perfecto para simular errores de API.</p>
+    </div>
+    <div class="card">
+      <h3>🎭 Múltiples contextos</h3>
+      <p>Simula varios usuarios/sesiones en un mismo test. Ideal para flujos colaborativos o multi-rol.</p>
+    </div>
+    <div class="card">
+      <h3>🗺️ Trace Viewer</h3>
+      <p>Graba cada test como una película: screenshots, DOM snapshots, network log, console errors. Debugging visual completo.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ─── S4: COMPARATIVA ─── -->
+<section class="slide" id="s4" data-title="Playwright vs Cypress vs Selenium">
+  <div class="eyebrow">Comparativa</div>
+  <div class="slide-title" style="text-align:center;">Playwright vs <span class="accent">la competencia</span></div>
+  <table class="compare-table" style="margin-top:28px;">
+    <thead>
+      <tr>
+        <th>Característica</th>
+        <th>Playwright</th>
+        <th>Cypress</th>
+        <th>Selenium</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Multi-browser real</td><td class="yes">✓ Chromium, Firefox, WebKit</td><td class="partial">△ Chrome / Edge / Firefox</td><td class="yes">✓ Todos (con drivers)</td></tr>
+      <tr><td>Auto-wait</td><td class="yes">✓ Built-in</td><td class="yes">✓ Built-in</td><td class="no">✗ Manual sleeps</td></tr>
+      <tr><td>Múltiples tabs / iframes</td><td class="yes">✓</td><td class="no">✗ No soportado</td><td class="yes">✓</td></tr>
+      <tr><td>Ejecución paralela</td><td class="yes">✓ Nativa</td><td class="partial">△ Plan pago</td><td class="partial">△ Grid setup</td></tr>
+      <tr><td>Codegen (grabar UI)</td><td class="yes">✓ Built-in</td><td class="no">✗</td><td class="no">✗</td></tr>
+      <tr><td>Trace Viewer</td><td class="yes">✓ Built-in</td><td class="partial">△ Dashboard pago</td><td class="no">✗</td></tr>
+      <tr><td>Setup inicial</td><td class="yes">✓ 1 comando</td><td class="yes">✓ Fácil</td><td class="no">✗ Complejo</td></tr>
+      <tr><td>TypeScript nativo</td><td class="yes">✓</td><td class="partial">△ Config extra</td><td class="partial">△ Bindings</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ─── S5: SETUP ─── -->
+<section class="slide" id="s5" data-title="Setup en un proyecto frontend">
+  <div class="eyebrow">Setup</div>
+  <div class="slide-title" style="text-align:center;">Instalación en <span class="accent">3 minutos</span></div>
+  <div class="two-col" style="margin-top:20px;max-width:1100px;align-items:start;">
+    <ul class="steps">
+      <li>
+        <span class="step-num">01</span>
+        <div>
+          <strong>Instalar Playwright</strong>
+          <span>Ejecuta el init wizard — detecta tu proyecto y configura todo automáticamente.</span>
+        </div>
+      </li>
+      <li>
+        <span class="step-num">02</span>
+        <div>
+          <strong>Seleccionar browsers</strong>
+          <span>El asistente pregunta qué browsers instalar. Los binarios se descargan solos en <code style="font-family:var(--mono);font-size:11px;color:var(--green)">node_modules</code>.</span>
+        </div>
+      </li>
+      <li>
+        <span class="step-num">03</span>
+        <div>
+          <strong>Configurar baseURL</strong>
+          <span>En <code style="font-family:var(--mono);font-size:11px;color:var(--green)">playwright.config.ts</code> define tu URL base, timeouts y proyectos (browsers).</span>
+        </div>
+      </li>
+      <li>
+        <span class="step-num">04</span>
+        <div>
+          <strong>Correr tests de ejemplo</strong>
+          <span>Playwright genera tests de demo. Córrelos para verificar que todo funciona antes de escribir los tuyos.</span>
+        </div>
+      </li>
+    </ul>
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div class="code-block">
+        <div class="bar"><div class="dot"></div><div class="dot"></div><div class="dot"></div><span>terminal</span></div>
+        <pre><span class="cmt"># Con npm</span>
+<span class="cmd">npm init playwright@latest</span>
+
+<span class="cmt"># Con yarn</span>
+<span class="cmd">yarn create playwright</span>
+
+<span class="cmt"># En proyecto existente (Next.js, Vite...)</span>
+<span class="cmd">npx playwright install</span>
+
+<span class="cmt"># Instalar solo los browsers</span>
+<span class="cmd">npx playwright install --with-deps</span></pre>
+      </div>
+      <div class="code-block">
+        <div class="bar"><div class="dot"></div><div class="dot"></div><div class="dot"></div><span>correr tests</span></div>
+        <pre><span class="cmt"># Modo headless (CI)</span>
+<span class="cmd">npx playwright test</span>
+
+<span class="cmt"># Con UI interactiva</span>
+<span class="cmd">npx playwright test --ui</span>
+
+<span class="cmt"># Solo un archivo</span>
+<span class="cmd">npx playwright test login.spec.ts</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── S6: ARCHIVOS GENERADOS ─── -->
+<section class="slide" id="s6" data-title="Archivos importantes generados">
+  <div class="eyebrow">Estructura</div>
+  <div class="slide-title" style="text-align:center;">Archivos que genera<br><span class="accent">la instalación</span></div>
+  <div class="two-col" style="margin-top:20px;max-width:1050px;">
+    <div class="code-block" style="font-size:13px;">
+      <div class="bar"><div class="dot"></div><div class="dot"></div><div class="dot"></div><span>árbol del proyecto</span></div>
+      <pre class="tree">
+<span class="folder">mi-proyecto/</span>
+├── <span class="highlight">playwright.config.ts</span>      <span class="note">⬅ config principal</span>
+├── <span class="highlight">tests/</span>
+│   └── <span class="highlight">example.spec.ts</span>       <span class="note">⬅ test de demo</span>
+├── <span class="highlight">tests-examples/</span>
+│   └── demo-todo-app.spec.ts  <span class="note">⬅ ejemplos avanzados</span>
+├── <span class="folder">playwright-report/</span>         <span class="note">reporte HTML (gitignore)</span>
+│   └── index.html
+├── <span class="folder">test-results/</span>              <span class="note">artefactos (gitignore)</span>
+│   ├── screenshots/
+│   └── traces/
+└── .github/
+    └── workflows/
+        └── <span class="highlight">playwright.yml</span>        <span class="note">⬅ CI listo</span></pre>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div class="card glow">
+        <h3>⚙️ playwright.config.ts</h3>
+        <p>El corazón de la configuración. Define browsers (projects), baseURL, timeouts, retries en CI, directorio de tests y opciones del reporter. <strong style="color:var(--white);">Siempre empieza aquí.</strong></p>
+      </div>
+      <div class="card">
+        <h3>🧪 *.spec.ts</h3>
+        <p>Convención de nombre para los archivos de test. Playwright los detecta automáticamente. Puedes cambiar el patrón en la config.</p>
+      </div>
+      <div class="card">
+        <h3>📊 playwright-report/</h3>
+        <p>Reporte HTML generado automáticamente tras cada run. Abre con <code style="font-family:var(--mono);font-size:11px;color:var(--green)">npx playwright show-report</code>. Agréga en .gitignore.</p>
+      </div>
+      <div class="card">
+        <h3>🚀 .github/workflows/playwright.yml</h3>
+        <p>Pipeline de CI pre-configurado para GitHub Actions. Corre tests en todos los browsers en cada push. Listo para usar desde el día 1.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── S7: CODEGEN ─── -->
+<section class="slide" id="s7" data-title="Codegen: tests sin escribir código">
+  <div class="eyebrow">🎥 Codegen</div>
+  <div class="slide-title" style="text-align:center;">Genera tests <span class="accent">grabando tu pantalla</span></div>
+  <div class="codegen-flow">
+    <div class="flow-step">
+      <div class="icon">▶️</div>
+      <h4>Abrir Codegen</h4>
+      <p>Corre <code style="font-family:var(--mono);font-size:11px;color:var(--green)">npx playwright codegen tu-url.com</code></p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="icon">🖱️</div>
+      <h4>Interactuar con la UI</h4>
+      <p>Haz clicks, escribe en inputs, navega. Playwright graba cada acción.</p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="icon">📋</div>
+      <h4>Código generado en vivo</h4>
+      <p>El código TypeScript aparece en tiempo real en una ventana paralela.</p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="icon">💾</div>
+      <h4>Exportar y refinar</h4>
+      <p>Guarda el archivo, agrega assertions y limpia el código generado.</p>
+    </div>
+  </div>
+  <div class="code-block" style="margin-top:24px;max-width:900px;">
+    <div class="bar"><div class="dot"></div><div class="dot"></div><div class="dot"></div><span>código generado por codegen</span></div>
+    <pre><span class="kw">import</span> { test, expect } <span class="kw">from</span> <span class="str">'@playwright/test'</span>;
+
+<span class="fn">test</span>(<span class="str">'login exitoso'</span>, <span class="kw">async</span> ({ page }) => {
+  <span class="kw">await</span> page.<span class="fn">goto</span>(<span class="str">'https://mi-app.com/login'</span>);
+  <span class="kw">await</span> page.<span class="fn">getByLabel</span>(<span class="str">'Email'</span>).<span class="fn">fill</span>(<span class="str">'usuario@test.com'</span>);
+  <span class="kw">await</span> page.<span class="fn">getByLabel</span>(<span class="str">'Contraseña'</span>).<span class="fn">fill</span>(<span class="str">'secreto123'</span>);
+  <span class="kw">await</span> page.<span class="fn">getByRole</span>(<span class="str">'button'</span>, { name: <span class="str">'Entrar'</span> }).<span class="fn">click</span>();
+  <span class="kw">await</span> <span class="fn">expect</span>(page).<span class="fn">toHaveURL</span>(<span class="str">/dashboard/</span>);
+});</pre>
+  </div>
+  <div style="margin-top:16px;display:flex;gap:12px;">
+    <span class="badge">🎯 Selectores semánticos</span>
+    <span class="badge">🔄 Graba autenticación</span>
+    <span class="badge">📱 Mobile emulation</span>
+    <span class="badge">🌍 Locales y geolocation</span>
+  </div>
+</section>
+
+<!-- ─── S8: PRIMER TEST ─── -->
+<section class="slide" id="s8" data-title="Anatomía de un test">
+  <div class="eyebrow">Código</div>
+  <div class="slide-title" style="text-align:center;">Anatomía de un<span class="accent"> test real</span></div>
+  <div class="two-col" style="margin-top:16px;max-width:1100px;align-items:start;">
+    <div class="code-block">
+      <div class="bar"><div class="dot"></div><div class="dot"></div><div class="dot"></div><span>tests/checkout.spec.ts</span></div>
+      <pre><span class="kw">import</span> { test, expect } <span class="kw">from</span> <span class="str">'@playwright/test'</span>;
+
+<span class="cmt">// Grupo de tests relacionados</span>
+test.<span class="fn">describe</span>(<span class="str">'Checkout flow'</span>, () => {
+
+  <span class="cmt">// Hook: corre antes de cada test</span>
+  test.<span class="fn">beforeEach</span>(<span class="kw">async</span> ({ page }) => {
+    <span class="kw">await</span> page.<span class="fn">goto</span>(<span class="str">'/carrito'</span>);
+  });
+
+  <span class="fn">test</span>(<span class="str">'agrega producto al carrito'</span>, <span class="kw">async</span> ({ page }) => {
+    <span class="kw">await</span> page
+      .<span class="fn">getByTestId</span>(<span class="str">'add-to-cart-btn'</span>)
+      .<span class="fn">click</span>();
+
+    <span class="cmt">// Assertion con auto-wait</span>
+    <span class="kw">await</span> <span class="fn">expect</span>(
+      page.<span class="fn">getByRole</span>(<span class="str">'status'</span>)
+    ).<span class="fn">toHaveText</span>(<span class="str">'1 producto'</span>);
+  });
+
+  <span class="fn">test</span>(<span class="str">'mockea el pago con error'</span>, <span class="kw">async</span> ({ page }) => {
+    <span class="cmt">// Interceptar red</span>
+    <span class="kw">await</span> page.<span class="fn">route</span>(<span class="str">'**/api/payment'</span>, route =>
+      route.<span class="fn">fulfill</span>({ status: <span class="num">500</span> })
+    );
+    <span class="kw">await</span> page.<span class="fn">getByText</span>(<span class="str">'Pagar'</span>).<span class="fn">click</span>();
+    <span class="kw">await</span> <span class="fn">expect</span>(
+      page.<span class="fn">getByRole</span>(<span class="str">'alert'</span>)
+    ).<span class="fn">toBeVisible</span>();
+  });
+});</pre>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div class="card">
+        <h3>🎯 Locators recomendados</h3>
+        <p><code style="font-family:var(--mono);font-size:11px;color:var(--green)">getByRole</code> → accesible y resiliente<br>
+        <code style="font-family:var(--mono);font-size:11px;color:var(--green)">getByLabel</code> → inputs por su label<br>
+        <code style="font-family:var(--mono);font-size:11px;color:var(--green)">getByTestId</code> → data-testid attribute<br>
+        <code style="font-family:var(--mono);font-size:11px;color:var(--green)">getByText</code> → por contenido visible</p>
+      </div>
+      <div class="card">
+        <h3>✅ Assertions clave</h3>
+        <p><code style="font-family:var(--mono);font-size:11px;color:var(--green)">toBeVisible()</code> · <code style="font-family:var(--mono);font-size:11px;color:var(--green)">toHaveText()</code><br>
+        <code style="font-family:var(--mono);font-size:11px;color:var(--green)">toHaveURL()</code> · <code style="font-family:var(--mono);font-size:11px;color:var(--green)">toBeEnabled()</code><br>
+        <code style="font-family:var(--mono);font-size:11px;color:var(--green)">toHaveValue()</code> · <code style="font-family:var(--mono);font-size:11px;color:var(--green)">toHaveCount()</code></p>
+      </div>
+      <div class="card glow">
+        <h3>💡 Tip: Page Object Model</h3>
+        <p>Encapsula selectores y acciones de cada página en una clase. Hace los tests mantenibles y reutilizables cuando la UI cambia.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── S9: TIPS AVANZADOS ─── -->
+<section class="slide" id="s9" data-title="Features avanzadas">
+  <div class="eyebrow">Pro Tips</div>
+  <div class="slide-title" style="text-align:center;">Features que <span class="accent">te van a encantar</span></div>
+  <div class="tips-grid" style="margin-top:24px;">
+    <div class="tip-card">
+      <div class="tip-head"><div class="tip-icon">🔐</div><h3>Auth state reutilizable</h3></div>
+      <p>Guarda el estado de autenticación con <code style="font-family:var(--mono);font-size:11px;color:var(--green)">storageState</code> y reutilízalo en todos los tests. No más login repetido — los tests corren al menos 3× más rápido.</p>
+    </div>
+    <div class="tip-card">
+      <div class="tip-head"><div class="tip-icon">🎬</div><h3>Trace Viewer</h3></div>
+      <p>Activa <code style="font-family:var(--mono);font-size:11px;color:var(--green)">trace: 'on-first-retry'</code> en la config. Cuando un test falla, abre el trace para ver una reproducción completa paso a paso.</p>
+    </div>
+    <div class="tip-card">
+      <div class="tip-head"><div class="tip-icon">📸</div><h3>Visual regression</h3></div>
+      <p>Con <code style="font-family:var(--mono);font-size:11px;color:var(--green)">toHaveScreenshot()</code> Playwright compara capturas pixel por pixel. Detecta cambios visuales no intencionales automáticamente.</p>
+    </div>
+    <div class="tip-card">
+      <div class="tip-head"><div class="tip-icon">🌐</div><h3>API testing integrado</h3></div>
+      <p>Usa <code style="font-family:var(--mono);font-size:11px;color:var(--green)">request</code> para hacer llamadas REST en tus tests. Ideal para crear datos de prueba o limpiar el estado antes de cada test.</p>
+    </div>
+    <div class="tip-card">
+      <div class="tip-head"><div class="tip-icon">📱</div><h3>Emulación móvil</h3></div>
+      <p>Emula dispositivos reales con <code style="font-family:var(--mono);font-size:11px;color:var(--green)">devices['iPhone 14']</code> — viewport, user agent, touch, geolocation. Sin necesitar dispositivo físico.</p>
+    </div>
+    <div class="tip-card">
+      <div class="tip-head"><div class="tip-icon">🧩</div><h3>Fixtures personalizados</h3></div>
+      <p>Extiende <code style="font-family:var(--mono);font-size:11px;color:var(--green)">test</code> con tus propios fixtures — usuario autenticado, datos mock, helpers. Elimina boilerplate en todos los tests.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ─── S10: UI MODE ─── -->
+<section class="slide" id="s10" data-title="UI Mode: debugging visual">
+  <div class="eyebrow">UI Mode</div>
+  <div class="slide-title" style="text-align:center;"><span class="accent">--ui</span> mode: tu mejor amigo<br>para debugging</div>
+  <div class="two-col" style="margin-top:24px;max-width:1050px;align-items:start;">
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div class="card glow">
+        <h3>🎯 Watch mode</h3>
+        <p>Los tests se re-ejecutan automáticamente cuando guardas un archivo. Feedback instantáneo mientras desarrollas.</p>
+      </div>
+      <div class="card">
+        <h3>⏮️ Time travel</h3>
+        <p>Mueve el cursor sobre cada paso del test y ve exactamente qué estaba en el DOM en ese momento. Como un debugger visual.</p>
+      </div>
+      <div class="card">
+        <h3>🔍 Pick locator</h3>
+        <p>Haz click en cualquier elemento del browser y UI Mode te genera el locator óptimo. Ideal para encontrar buenos selectores.</p>
+      </div>
+    </div>
+    <div class="code-block">
+      <div class="bar"><div class="dot"></div><div class="dot"></div><div class="dot"></div><span>comandos útiles</span></div>
+      <pre><span class="cmt"># UI interactiva (modo desarrollo)</span>
+<span class="cmd">npx playwright test --ui</span>
+
+<span class="cmt"># Modo debug paso a paso</span>
+<span class="cmd">npx playwright test --debug</span>
+
+<span class="cmt"># Abrir reporte HTML</span>
+<span class="cmd">npx playwright show-report</span>
+
+<span class="cmt"># Grabar tests nuevos</span>
+<span class="cmd">npx playwright codegen localhost:3000</span>
+
+<span class="cmt"># Ver trace de test fallido</span>
+<span class="cmd">npx playwright show-trace trace.zip</span>
+
+<span class="cmt"># Solo tests con tag específico</span>
+<span class="cmd">npx playwright test --grep @smoke</span>
+
+<span class="cmt"># Correr en un browser específico</span>
+<span class="cmd">npx playwright test --project=firefox</span></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ─── S11: CI/CD ─── -->
+<section class="slide" id="s11" data-title="CI/CD con GitHub Actions">
+  <div class="eyebrow">CI/CD</div>
+  <div class="slide-title" style="text-align:center;">Pipeline listo<br>para <span class="accent">GitHub Actions</span></div>
+  <div class="two-col" style="margin-top:20px;max-width:1100px;align-items:start;">
+    <div class="code-block">
+      <div class="bar"><div class="dot"></div><div class="dot"></div><div class="dot"></div><span>.github/workflows/playwright.yml</span></div>
+      <pre><span class="kw">name</span>: Playwright Tests
+<span class="kw">on</span>:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+<span class="kw">jobs</span>:
+  test:
+    <span class="kw">runs-on</span>: ubuntu-latest
+    <span class="kw">steps</span>:
+      - <span class="kw">uses</span>: actions/checkout@v4
+      - <span class="kw">uses</span>: actions/setup-node@v4
+        <span class="kw">with</span>:
+          node-version: <span class="num">20</span>
+
+      - <span class="kw">name</span>: Install dependencies
+        <span class="kw">run</span>: npm ci
+
+      - <span class="kw">name</span>: Install Playwright Browsers
+        <span class="kw">run</span>: npx playwright install --with-deps
+
+      - <span class="kw">name</span>: Run Playwright tests
+        <span class="kw">run</span>: npx playwright test
+
+      - <span class="kw">uses</span>: actions/upload-artifact@v4
+        <span class="kw">if</span>: always()
+        <span class="kw">with</span>:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: <span class="num">30</span></pre>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div class="card glow">
+        <h3>🚀 Generado automáticamente</h3>
+        <p>Al ejecutar <code style="font-family:var(--mono);font-size:11px;color:var(--green)">npm init playwright</code> el wizard pregunta si quieres el workflow de CI. Si dices sí, lo crea listo para usar.</p>
+      </div>
+      <div class="card">
+        <h3>📦 Cache de browsers</h3>
+        <p>Agrega caché para los binarios de Playwright y reduce el tiempo de CI de ~2 min a ~20 seg en ejecuciones subsecuentes.</p>
+      </div>
+      <div class="card">
+        <h3>📊 Reporte como artefacto</h3>
+        <p>El reporte HTML queda disponible en la sección Artifacts de cada run. Tu equipo puede revisarlo sin acceso al servidor.</p>
+      </div>
+      <div class="card">
+        <h3>🔁 Retries automáticos en CI</h3>
+        <p>Configura <code style="font-family:var(--mono);font-size:11px;color:var(--green)">retries: 2</code> en la config para CI. Tests flaky se reintentan automáticamente antes de fallar el pipeline.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── S12: RESUMEN FINAL ─── -->
+<section class="slide" id="s12" data-title="Resumen y próximos pasos">
+  <div class="bg-grid" style="opacity:.2;"></div>
+  <div class="eyebrow">Resumen</div>
+  <div class="slide-title" style="text-align:center;">Empieza hoy —<br><span class="accent">un comando</span> es todo lo que necesitas</div>
+  <div class="three-col" style="margin-top:28px;max-width:1050px;">
+    <div class="card">
+      <h3>✅ Lo que vimos</h3>
+      <p style="line-height:2;">🔴 El problema del testing E2E<br>
+      ⚡ Por qué Playwright gana<br>
+      🚀 Setup en 3 minutos<br>
+      📁 Archivos generados<br>
+      🎥 Codegen sin código<br>
+      🔧 Features avanzadas<br>
+      🚦 CI con GitHub Actions</p>
+    </div>
+    <div class="card glow" style="text-align:center;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-family:var(--mono);font-size:60px;margin-bottom:8px;">▶</div>
+      <div style="font-family:var(--mono);font-size:22px;font-weight:700;color:var(--white);margin-bottom:12px;">Próximo paso</div>
+      <div class="code-block" style="text-align:left;">
+        <div class="bar"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+        <pre style="text-align:center;padding:14px;"><span class="cmd">npm init playwright@latest</span></pre>
+      </div>
+    </div>
+    <div class="card">
+      <h3>📚 Recursos</h3>
+      <p style="line-height:2.2;">
+        <a href="https://playwright.dev" style="color:var(--green);text-decoration:none;">playwright.dev</a> — Docs oficiales<br>
+        <code style="font-family:var(--mono);font-size:11px;color:var(--green)">--ui</code> mode para debugging<br>
+        <code style="font-family:var(--mono);font-size:11px;color:var(--green)">codegen</code> para explorar<br>
+        VS Code Extension<br>
+        <span style="font-size:12px;color:#4a4a6a;">@playwright/test en npm</span>
+      </p>
+    </div>
+  </div>
+  <div style="margin-top:24px;font-family:var(--mono);font-size:12px;color:var(--text-dim);">
+    Workshop Playwright · End-to-End Testing Moderno
+  </div>
+</section>
+
+</div><!-- /deck -->
+
+<script>
+// ── SLIDE DATA ──
+const slides = Array.from(document.querySelectorAll('.slide'));
+const total = slides.length;
+let current = 0;
+let indexOpen = false;
+
+// Build index
+const indexList = document.getElementById('index-list');
+slides.forEach((s, i) => {
+  const title = s.dataset.title || `Slide ${i+1}`;
+  const el = document.createElement('div');
+  el.style.cssText = `
+    padding:12px 18px; border-radius:8px; cursor:pointer;
+    display:flex; align-items:center; gap:16px;
+    border:1px solid transparent; transition:.2s;
+  `;
+  el.innerHTML = `
+    <span style="font-family:var(--mono);font-size:11px;color:var(--green);min-width:24px;">${String(i+1).padStart(2,'0')}</span>
+    <span style="font-size:14px;color:var(--text);">${title}</span>
+  `;
+  el.addEventListener('click', () => { goTo(i); toggleIndex(false); });
+  el.addEventListener('mouseenter', () => el.style.background = 'var(--surface)');
+  el.addEventListener('mouseleave', () => el.style.background = 'transparent');
+  indexList.appendChild(el);
+});
+
+function goTo(n) {
+  slides[current].classList.remove('active');
+  current = Math.max(0, Math.min(n, total - 1));
+  slides[current].classList.add('active');
+  updateMeta();
+}
+
+function updateMeta() {
+  document.getElementById('progress-bar').style.width = `${((current+1)/total)*100}%`;
+  document.getElementById('slide-counter').textContent = `${String(current+1).padStart(2,'0')} / ${String(total).padStart(2,'0')}`;
+  // Update index highlight
+  Array.from(indexList.children).forEach((el,i) => {
+    el.style.borderColor = i === current ? 'var(--green-dim)' : 'transparent';
+  });
+}
+
+function toggleIndex(force) {
+  indexOpen = force !== undefined ? force : !indexOpen;
+  document.getElementById('index-overlay').style.display = indexOpen ? 'block' : 'none';
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { toggleIndex(!indexOpen); return; }
+  if (indexOpen) return;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); goTo(current+1); }
+  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')  { e.preventDefault(); goTo(current-1); }
+});
+
+document.getElementById('deck').addEventListener('click', e => {
+  if (e.clientX > window.innerWidth / 2) goTo(current+1);
+  else goTo(current-1);
+});
+
+// Init
+goTo(0);
+
+// ── TYPEWRITER on S1 ──
+const lines = [
+  'npm init playwright@latest',
+  'npx playwright test --ui',
+  'npx playwright codegen .',
+];
+let lineIdx = 0, charIdx = 0, deleting = false;
+const typed = document.getElementById('typed-text');
+
+function typeLoop() {
+  const line = lines[lineIdx];
+  if (!deleting) {
+    typed.textContent = line.slice(0, ++charIdx);
+    if (charIdx === line.length) { deleting = true; setTimeout(typeLoop, 2200); return; }
+  } else {
+    typed.textContent = line.slice(0, --charIdx);
+    if (charIdx === 0) { deleting = false; lineIdx = (lineIdx+1) % lines.length; }
+  }
+  setTimeout(typeLoop, deleting ? 40 : 70);
+}
+typeLoop();
+</script>
+</body>
+</html>
