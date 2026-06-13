@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chrome DevTools MCP × Angular</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0A0E1A;
+    --bg2:      #111827;
+    --bg3:      #1A2236;
+    --blue:     #4F9EFF;
+    --blue-dim: #2563EB;
+    --green:    #00D97E;
+    --purple:   #A78BFA;
+    --amber:    #FBBF24;
+    --text:     #F0F4FF;
+    --muted:    #8892A4;
+    --border:   #1E2D45;
+    --mono:     'JetBrains Mono', monospace;
+    --sans:     'Space Grotesk', sans-serif;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+  }
+
+  /* ── SLIDESHOW ── */
+  .deck { width: 100%; height: 100vh; position: relative; }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 48px 64px;
+    opacity: 0; pointer-events: none;
+    transition: opacity .45s ease;
+  }
+  .slide.active { opacity: 1; pointer-events: all; }
+
+  /* ── NAV ── */
+  .nav {
+    position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 20px;
+    background: rgba(10,14,26,.85);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+    border-radius: 48px;
+    padding: 10px 24px;
+    z-index: 100;
+  }
+  .nav button {
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); font-size: 18px;
+    transition: color .2s;
+    display: flex; align-items: center;
+  }
+  .nav button:hover { color: var(--blue); }
+  .nav .dots { display: flex; gap: 8px; }
+  .nav .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--border); cursor: pointer;
+    transition: background .2s, transform .2s;
+  }
+  .nav .dot.active { background: var(--blue); transform: scale(1.4); }
+  .slide-counter {
+    font-family: var(--mono);
+    font-size: 12px; color: var(--muted);
+    min-width: 40px; text-align: center;
+  }
+
+  /* ── SHARED COMPONENTS ── */
+  .eyebrow {
+    font-family: var(--mono); font-size: 11px; font-weight: 500;
+    letter-spacing: .15em; text-transform: uppercase;
+    color: var(--green); margin-bottom: 16px;
+  }
+  .tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 11px;
+    background: rgba(79,158,255,.12); color: var(--blue);
+    border: 1px solid rgba(79,158,255,.25);
+    border-radius: 4px; padding: 3px 10px;
+  }
+  .card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 28px;
+  }
+  .code-block {
+    background: #060A14;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 22px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    overflow: auto;
+  }
+  .hl-blue   { color: var(--blue); }
+  .hl-green  { color: var(--green); }
+  .hl-purple { color: var(--purple); }
+  .hl-amber  { color: var(--amber); }
+  .hl-muted  { color: var(--muted); }
+
+  /* ── SLIDE 1: COVER ── */
+  #s1 { background: var(--bg); }
+  .cover-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+    max-width: 1100px;
+    width: 100%;
+  }
+  .cover-left { display: flex; flex-direction: column; gap: 20px; }
+  .cover-title {
+    font-size: clamp(36px, 4.5vw, 64px);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -.02em;
+  }
+  .cover-title em { font-style: normal; color: var(--blue); }
+  .cover-sub {
+    font-size: 16px; color: var(--muted); line-height: 1.6; max-width: 420px;
+  }
+  .cover-meta {
+    display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px;
+  }
+
+  /* Live bridge animation */
+  .bridge-anim {
+    width: 100%; max-width: 420px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .bridge-node {
+    display: flex; align-items: center; gap: 16px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+  }
+  .node-icon {
+    width: 40px; height: 40px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+  }
+  .node-label { font-size: 13px; font-weight: 600; }
+  .node-sub   { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  .bridge-connector {
+    display: flex; align-items: center; justify-content: center;
+    gap: 4px; padding: 4px 0;
+  }
+  .pulse-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green);
+    animation: pulseDot 1.4s ease-in-out infinite;
+  }
+  .pulse-dot:nth-child(2) { animation-delay: .2s; }
+  .pulse-dot:nth-child(3) { animation-delay: .4s; }
+  @keyframes pulseDot {
+    0%,100% { opacity: .2; transform: scale(.8); }
+    50%      { opacity: 1;  transform: scale(1.3); }
+  }
+  .live-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 10px; color: var(--green);
+    margin-left: auto;
+  }
+  .live-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green);
+    animation: pulseDot 1s ease-in-out infinite;
+  }
+
+  /* ── SLIDE 2: PROBLEMA ── */
+  #s2 .content { max-width: 900px; width: 100%; }
+  .big-statement {
+    font-size: clamp(26px, 3.5vw, 48px);
+    font-weight: 700;
+    line-height: 1.2;
+    max-width: 720px;
+    margin-bottom: 40px;
+  }
+  .big-statement span { color: var(--blue); }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .pain-item {
+    display: flex; gap: 14px; align-items: flex-start;
+    padding: 18px 20px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .pain-icon { font-size: 22px; flex-shrink: 0; }
+  .pain-text  { font-size: 14px; line-height: 1.5; color: var(--muted); }
+  .pain-text strong { color: var(--text); display: block; margin-bottom: 4px; }
+
+  /* ── SLIDE 3: QUÉ ES ── */
+  #s3 .content { max-width: 1000px; width: 100%; }
+  .def-header {
+    display: flex; align-items: flex-start; gap: 40px;
+    margin-bottom: 32px;
+  }
+  .def-headline {
+    font-size: clamp(24px, 3vw, 42px);
+    font-weight: 700; line-height: 1.15;
+  }
+  .def-headline em { font-style: normal; color: var(--green); }
+  .def-body { font-size: 15px; line-height: 1.7; color: var(--muted); max-width: 580px; }
+  .three-col { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+  .pill-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .pill-card .icon { font-size: 26px; margin-bottom: 12px; }
+  .pill-card h4 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .pill-card p  { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+  /* ── SLIDE 4: SETUP ── */
+  #s4 .content { max-width: 900px; width: 100%; }
+  .setup-step {
+    display: flex; gap: 24px; align-items: flex-start;
+    margin-bottom: 24px;
+  }
+  .step-num {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(79,158,255,.15);
+    border: 1px solid rgba(79,158,255,.35);
+    color: var(--blue);
+    font-family: var(--mono); font-size: 13px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .step-body { flex: 1; }
+  .step-body h4 { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+  .step-body p  { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+
+  /* ── SLIDE 5: HERRAMIENTAS ── */
+  #s5 .content { max-width: 1000px; width: 100%; }
+  .tools-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  .tool-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    transition: border-color .2s;
+  }
+  .tool-card:hover { border-color: rgba(79,158,255,.4); }
+  .tool-name {
+    font-family: var(--mono); font-size: 12px; font-weight: 700;
+    color: var(--blue); margin-bottom: 6px;
+  }
+  .tool-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .tool-tag {
+    display: inline-block;
+    font-family: var(--mono); font-size: 10px;
+    background: rgba(0,217,126,.1); color: var(--green);
+    border-radius: 3px; padding: 1px 6px; margin-top: 8px;
+  }
+
+  /* ── SLIDE 6: WORKSHOP DEMO ── */
+  #s6 .content { max-width: 1000px; width: 100%; }
+  .demo-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 28px; align-items: start; }
+  .bug-list { display: flex; flex-direction: column; gap: 14px; }
+  .bug-item {
+    display: flex; gap: 14px; align-items: flex-start;
+    padding: 14px 16px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-left: 3px solid;
+    border-radius: 8px;
+  }
+  .bug-item.b1 { border-left-color: #EF4444; }
+  .bug-item.b2 { border-left-color: var(--amber); }
+  .bug-item.b3 { border-left-color: var(--purple); }
+  .bug-badge {
+    font-family: var(--mono); font-size: 10px; font-weight: 700;
+    padding: 2px 8px; border-radius: 4px; flex-shrink: 0;
+  }
+  .b1 .bug-badge { background: rgba(239,68,68,.15); color: #EF4444; }
+  .b2 .bug-badge { background: rgba(251,191,36,.12); color: var(--amber); }
+  .b3 .bug-badge { background: rgba(167,139,250,.12); color: var(--purple); }
+  .bug-info h5 { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+  .bug-info p  { font-size: 12px; color: var(--muted); }
+  .prompts-stack { display: flex; flex-direction: column; gap: 10px; }
+  .prompt-bubble {
+    background: rgba(79,158,255,.08);
+    border: 1px solid rgba(79,158,255,.2);
+    border-radius: 10px 10px 10px 2px;
+    padding: 12px 16px;
+    font-size: 13px; line-height: 1.5;
+    color: var(--text);
+    position: relative;
+  }
+  .prompt-bubble::before {
+    content: '→';
+    color: var(--blue); font-weight: 700;
+    margin-right: 8px;
+  }
+  .prompt-label {
+    font-family: var(--mono); font-size: 10px; color: var(--blue);
+    margin-bottom: 6px;
+  }
+
+  /* ── SLIDE 7: ANTES / DESPUÉS ── */
+  #s7 .content { max-width: 950px; width: 100%; }
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .compare-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .compare-header {
+    padding: 14px 20px;
+    font-weight: 700; font-size: 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .compare-card.before .compare-header { background: rgba(239,68,68,.1); color: #EF4444; }
+  .compare-card.after  .compare-header { background: rgba(0,217,126,.1); color: var(--green); }
+  .compare-body { padding: 20px; }
+  .compare-step {
+    display: flex; gap: 12px; align-items: flex-start;
+    margin-bottom: 14px; font-size: 13px; color: var(--muted); line-height: 1.5;
+  }
+  .compare-step .icon { flex-shrink: 0; font-size: 16px; }
+  .big-quote {
+    text-align: center;
+    font-size: clamp(16px, 2vw, 22px);
+    font-weight: 600; line-height: 1.5;
+    max-width: 720px;
+    margin: 32px auto 0;
+    color: var(--text);
+  }
+  .big-quote span { color: var(--blue); }
+
+  /* ── SLIDE 8: CIERRE ── */
+  #s8 { background: var(--bg); }
+  .close-content {
+    text-align: center;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 28px; max-width: 700px;
+  }
+  .close-title {
+    font-size: clamp(32px, 4.5vw, 60px);
+    font-weight: 700; line-height: 1.1;
+  }
+  .close-title em { font-style: normal; color: var(--green); }
+  .close-sub { font-size: 16px; color: var(--muted); line-height: 1.7; }
+  .links-row { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+  .link-chip {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+    text-decoration: none;
+    transition: border-color .2s, color .2s;
+  }
+  .link-chip:hover { border-color: var(--blue); color: var(--blue); }
+  .link-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--blue); }
+
+  /* ── SLIDE TITLE BAND ── */
+  .slide-title-band {
+    position: absolute; top: 32px; left: 64px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .slide-section { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; }
+  .slide-heading  { font-size: 28px; font-weight: 700; }
+
+  /* Ambient glow */
+  .glow {
+    position: absolute; border-radius: 50%; pointer-events: none; z-index: 0;
+  }
+  .g1 { width: 500px; height: 500px; top: -150px; right: -100px; background: radial-gradient(circle, rgba(79,158,255,.07) 0%, transparent 70%); }
+  .g2 { width: 400px; height: 400px; bottom: -100px; left: -80px;  background: radial-gradient(circle, rgba(0,217,126,.05) 0%, transparent 70%); }
+
+  .content { position: relative; z-index: 1; }
+</style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+  <!-- ════════════════════════════════════════════
+       SLIDE 1 · PORTADA
+  ════════════════════════════════════════════ -->
+  <section class="slide active" id="s1">
+    <div class="glow g1"></div>
+    <div class="glow g2"></div>
+    <div class="cover-grid content">
+      <div class="cover-left">
+        <div class="eyebrow">Workshop · Angular + IA</div>
+        <h1 class="cover-title">
+          Chrome DevTools<br><em>MCP</em> × Angular
+        </h1>
+        <p class="cover-sub">
+          Conecta tu asistente de IA directamente al navegador y cierra el loop del debugging en tiempo real.
+        </p>
+        <div class="cover-meta">
+          <span class="tag">Node.js v20+</span>
+          <span class="tag">Chrome Stable</span>
+          <span class="tag">MCP Protocol</span>
+          <span class="tag">Angular v17+</span>
+        </div>
+      </div>
+      <div class="bridge-anim">
+        <div class="bridge-node">
+          <div class="node-icon" style="background:rgba(79,158,255,.15)">🤖</div>
+          <div>
+            <div class="node-label">Agente de IA</div>
+            <div class="node-sub">Claude / Cursor / Gemini CLI</div>
+          </div>
+          <span class="live-badge"><span class="live-dot"></span>activo</span>
+        </div>
+
+        <div class="bridge-connector">
+          <div class="pulse-dot"></div>
+          <div class="pulse-dot"></div>
+          <div class="pulse-dot"></div>
+          <div style="flex:1; height:1px; background: var(--border); margin: 0 8px;"></div>
+          <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">MCP Protocol</span>
+          <div style="flex:1; height:1px; background: var(--border); margin: 0 8px;"></div>
+          <div class="pulse-dot"></div>
+          <div class="pulse-dot"></div>
+          <div class="pulse-dot"></div>
+        </div>
+
+        <div class="bridge-node">
+          <div class="node-icon" style="background:rgba(0,217,126,.12)">🌐</div>
+          <div>
+            <div class="node-label">Chrome DevTools</div>
+            <div class="node-sub">localhost:4200 · Angular App</div>
+          </div>
+        </div>
+
+        <div class="bridge-connector">
+          <div class="pulse-dot"></div>
+          <div class="pulse-dot"></div>
+          <div class="pulse-dot"></div>
+          <div style="flex:1; height:1px; background: var(--border); margin: 0 8px;"></div>
+          <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">DevTools MCP Server</span>
+          <div style="flex:1; height:1px; background: var(--border); margin: 0 8px;"></div>
+          <div class="pulse-dot"></div>
+          <div class="pulse-dot"></div>
+          <div class="pulse-dot"></div>
+        </div>
+
+        <div class="bridge-node">
+          <div class="node-icon" style="background:rgba(167,139,250,.12)">⚡</div>
+          <div>
+            <div class="node-label">26 Herramientas</div>
+            <div class="node-sub">network · perf · DOM · console</div>
+          </div>
+          <span class="live-badge"><span class="live-dot"></span>live</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       SLIDE 2 · EL PROBLEMA
+  ════════════════════════════════════════════ -->
+  <section class="slide" id="s2">
+    <div class="glow g1"></div>
+    <div class="slide-title-band">
+      <span class="slide-section">01 · El Problema</span>
+    </div>
+    <div class="content" style="max-width:900px;width:100%;">
+      <p class="big-statement">
+        Los agentes de IA programan<br><span>con los ojos vendados.</span>
+      </p>
+      <div class="two-col">
+        <div class="pain-item">
+          <span class="pain-icon">🔄</span>
+          <div class="pain-text">
+            <strong>Loop manual interminable</strong>
+            El IA genera código → tú abres el navegador → copias el error → lo pegas de vuelta → repites.
+          </div>
+        </div>
+        <div class="pain-item">
+          <span class="pain-icon">🎯</span>
+          <div class="pain-text">
+            <strong>Sin contexto de ejecución real</strong>
+            El modelo no sabe si el componente renderizó, si la petición falló con 403 o si el LCP está en 8 segundos.
+          </div>
+        </div>
+        <div class="pain-item">
+          <span class="pain-icon">🧠</span>
+          <div class="pain-text">
+            <strong>Alucinaciones de estado</strong>
+            El agente asume cómo se ve tu app en vez de observarla, lo que genera fixes incorrectos una y otra vez.
+          </div>
+        </div>
+        <div class="pain-item">
+          <span class="pain-icon">⏱️</span>
+          <div class="pain-text">
+            <strong>Tiempo perdido en contexto</strong>
+            Cada ciclo de feedback requiere que tú seas el puente entre el browser y el agente.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       SLIDE 3 · QUÉ ES MCP
+  ════════════════════════════════════════════ -->
+  <section class="slide" id="s3">
+    <div class="glow g2"></div>
+    <div class="slide-title-band">
+      <span class="slide-section">02 · La Solución</span>
+    </div>
+    <div class="content" style="max-width:1000px;width:100%;">
+      <div class="def-header">
+        <div>
+          <h2 class="def-headline">Chrome DevTools<br><em>MCP Server</em></h2>
+        </div>
+        <p class="def-body">
+          Un servidor MCP oficial del equipo de Chrome que expone las capacidades de DevTools a cualquier asistente de IA compatible. Lanzado en public preview el 23 de septiembre de 2025, con auto-connection desde la v0.12.1.
+        </p>
+      </div>
+      <div class="three-col">
+        <div class="pill-card">
+          <div class="icon">🔌</div>
+          <h4>Model Context Protocol</h4>
+          <p>Estándar open-source de Anthropic para conectar LLMs a herramientas externas. El "USB-C" de las integraciones de IA.</p>
+        </div>
+        <div class="pill-card">
+          <div class="icon">🧩</div>
+          <h4>Servidor MCP oficial</h4>
+          <p>Mantenido por el equipo de Chrome DevTools. Disponible vía npx, sin instalación permanente.</p>
+        </div>
+        <div class="pill-card">
+          <div class="icon">🔁</div>
+          <h4>Loop cerrado</h4>
+          <p>El agente observa, actúa y verifica en el browser real. Sin intermediarios humanos en el ciclo de debug.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       SLIDE 4 · SETUP
+  ════════════════════════════════════════════ -->
+  <section class="slide" id="s4">
+    <div class="glow g1"></div>
+    <div class="slide-title-band">
+      <span class="slide-section">03 · Integración</span>
+    </div>
+    <div class="content" style="max-width:880px;width:100%;">
+      <h2 style="font-size:28px;font-weight:700;margin-bottom:28px;">Setup en 3 pasos</h2>
+
+      <div class="setup-step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Requisitos</h4>
+          <p>Node.js v20.19+ · Chrome estable · Cliente MCP (Claude Desktop, Cursor, VS Code Copilot)</p>
+        </div>
+      </div>
+
+      <div class="setup-step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Configurar el cliente MCP</h4>
+          <p>Agrega esta entrada en tu archivo de config (<code style="font-family:var(--mono);font-size:12px;color:var(--blue)">claude_desktop_config.json</code> o <code style="font-family:var(--mono);font-size:12px;color:var(--blue)">.cursor/mcp.json</code>):</p>
+          <div class="code-block">
+<span class="hl-muted">{</span><br>
+&nbsp;&nbsp;<span class="hl-blue">"mcpServers"</span><span class="hl-muted">: {</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="hl-green">"chrome-devtools"</span><span class="hl-muted">: {</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="hl-blue">"command"</span><span class="hl-muted">: </span><span class="hl-amber">"npx"</span><span class="hl-muted">,</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="hl-blue">"args"</span><span class="hl-muted">: [</span><span class="hl-amber">"chrome-devtools-mcp@latest"</span><span class="hl-muted">]</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="hl-muted">}</span><br>
+&nbsp;&nbsp;<span class="hl-muted">}</span><br>
+<span class="hl-muted">}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="setup-step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Verificar que funciona</h4>
+          <p>Con tu app Angular corriendo en <code style="font-family:var(--mono);font-size:12px;color:var(--green)">localhost:4200</code>, lanza este prompt en tu agente:</p>
+          <div class="code-block">
+<span class="hl-green">→</span> <span class="hl-text">"Navega a localhost:4200 y toma un screenshot."</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       SLIDE 5 · HERRAMIENTAS
+  ════════════════════════════════════════════ -->
+  <section class="slide" id="s5">
+    <div class="glow g2"></div>
+    <div class="slide-title-band">
+      <span class="slide-section">04 · Herramientas</span>
+    </div>
+    <div class="content" style="max-width:1000px;width:100%;">
+      <h2 style="font-size:26px;font-weight:700;margin-bottom:22px;">26 herramientas para Angular</h2>
+      <div class="tools-grid">
+        <div class="tool-card">
+          <div class="tool-name">navigate_page</div>
+          <div class="tool-desc">Navega a cualquier ruta de tu SPA Angular sin recargar manualmente.</div>
+          <span class="tool-tag">routing</span>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">screenshot</div>
+          <div class="tool-desc">Captura visual del estado actual del componente o la vista.</div>
+          <span class="tool-tag">visual</span>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">get_console_logs</div>
+          <div class="tool-desc">Lee errores de Angular: ExpressionChangedAfterItHasBeenChecked, NullInjector, etc.</div>
+          <span class="tool-tag">debug</span>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">get_network_requests</div>
+          <div class="tool-desc">Inspecciona todas las llamadas HTTP, headers, status codes y respuestas.</div>
+          <span class="tool-tag">network</span>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">performance_start_trace</div>
+          <div class="tool-desc">Graba un performance trace con LCP, CLS, FID y tiempos de change detection.</div>
+          <span class="tool-tag">performance</span>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">evaluate_js</div>
+          <div class="tool-desc">Ejecuta JavaScript en el contexto de tu app Angular en tiempo real.</div>
+          <span class="tool-tag">runtime</span>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">get_accessibility_tree</div>
+          <div class="tool-desc">Inspecciona la estructura del DOM accesible y los elementos interactivos.</div>
+          <span class="tool-tag">a11y</span>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">emulate_network</div>
+          <div class="tool-desc">Simula condiciones de red: Slow 4G, offline, throttling personalizado.</div>
+          <span class="tool-tag">testing</span>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">new_page / close_page</div>
+          <div class="tool-desc">Controla pestañas del browser para flujos multi-página o pruebas E2E.</div>
+          <span class="tool-tag">automation</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       SLIDE 6 · CASO WORKSHOP
+  ════════════════════════════════════════════ -->
+  <section class="slide" id="s6">
+    <div class="glow g1"></div>
+    <div class="slide-title-band">
+      <span class="slide-section">05 · Workshop Demo</span>
+    </div>
+    <div class="content" style="max-width:1000px;width:100%;">
+      <h2 style="font-size:26px;font-weight:700;margin-bottom:22px;">ProductListComponent · 3 bugs intencionados</h2>
+      <div class="demo-grid">
+        <div>
+          <p style="font-size:12px;font-family:var(--mono);color:var(--muted);margin-bottom:14px;">BUGS A DETECTAR</p>
+          <div class="bug-list">
+            <div class="bug-item b1">
+              <span class="bug-badge">404</span>
+              <div class="bug-info">
+                <h5>Imagen rota</h5>
+                <p><code style="font-family:var(--mono);font-size:11px">imageUrl = 'https://myapi.com/img/x.png'</code> — URL inválida</p>
+              </div>
+            </div>
+            <div class="bug-item b2">
+              <span class="bug-badge">PERF</span>
+              <div class="bug-info">
+                <h5>Lista sin virtual scroll</h5>
+                <p>5000 items renderizados directamente — LCP &gt; 8s</p>
+              </div>
+            </div>
+            <div class="bug-item b3">
+              <span class="bug-badge">CORS</span>
+              <div class="bug-info">
+                <h5>Error CORS en API call</h5>
+                <p><code style="font-family:var(--mono);font-size:11px">http://api-local:3000/products</code> — sin proxy</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <p style="font-size:12px;font-family:var(--mono);color:var(--muted);margin-bottom:14px;">PROMPTS DE LA DEMO</p>
+          <div class="prompts-stack">
+            <div>
+              <div class="prompt-label">PASO 1</div>
+              <div class="prompt-bubble">Navega a localhost:4200 y toma un screenshot de la página.</div>
+            </div>
+            <div>
+              <div class="prompt-label">PASO 2</div>
+              <div class="prompt-bubble">¿Hay imágenes que no cargan? ¿Qué errores de red ves?</div>
+            </div>
+            <div>
+              <div class="prompt-label">PASO 3</div>
+              <div class="prompt-bubble">La página carga lento. Analiza el rendimiento y sugiere mejoras.</div>
+            </div>
+            <div>
+              <div class="prompt-label">PASO 4</div>
+              <div class="prompt-bubble">Verifica en el navegador que el cambio que aplicaste funciona.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       SLIDE 7 · ANTES / DESPUÉS
+  ════════════════════════════════════════════ -->
+  <section class="slide" id="s7">
+    <div class="glow g2"></div>
+    <div class="slide-title-band">
+      <span class="slide-section">06 · Impacto</span>
+    </div>
+    <div class="content" style="max-width:950px;width:100%;">
+      <h2 style="font-size:26px;font-weight:700;margin-bottom:24px;">Antes y después del MCP</h2>
+      <div class="compare-grid">
+        <div class="compare-card before">
+          <div class="compare-header">
+            <span>✕</span> Sin Chrome DevTools MCP
+          </div>
+          <div class="compare-body">
+            <div class="compare-step"><span class="icon">1️⃣</span>IA genera código sin contexto del browser</div>
+            <div class="compare-step"><span class="icon">2️⃣</span>Tú abres Chrome manualmente y buscas el error</div>
+            <div class="compare-step"><span class="icon">3️⃣</span>Copias el error y lo pegas en el chat</div>
+            <div class="compare-step"><span class="icon">4️⃣</span>La IA genera un fix (posiblemente incorrecto)</div>
+            <div class="compare-step"><span class="icon">🔁</span>Repites el ciclo N veces…</div>
+          </div>
+        </div>
+        <div class="compare-card after">
+          <div class="compare-header">
+            <span>✓</span> Con Chrome DevTools MCP
+          </div>
+          <div class="compare-body">
+            <div class="compare-step"><span class="icon">🤖</span>IA navega al componente y toma un screenshot</div>
+            <div class="compare-step"><span class="icon">🔍</span>Inspecciona network, consola y DOM en tiempo real</div>
+            <div class="compare-step"><span class="icon">⚡</span>Genera y aplica el fix con contexto completo</div>
+            <div class="compare-step"><span class="icon">✅</span>Verifica visualmente que el fix funciona</div>
+            <div class="compare-step"><span class="icon">🎯</span>Loop cerrado — sin intervención manual</div>
+          </div>
+        </div>
+      </div>
+      <p class="big-quote">
+        El agente pasa de programar a ciegas<br>a tener <span>ojos sobre la app en ejecución.</span>
+      </p>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       SLIDE 8 · CIERRE
+  ════════════════════════════════════════════ -->
+  <section class="slide" id="s8">
+    <div class="glow g1"></div>
+    <div class="glow g2"></div>
+    <div class="close-content content">
+      <div class="eyebrow">Empieza hoy</div>
+      <h2 class="close-title">Dale <em>ojos</em> a<br>tu agente de IA</h2>
+      <p class="close-sub">
+        Chrome DevTools MCP convierte tu asistente de IA en un debugger que ve, actúa y verifica en tu app Angular en tiempo real.
+      </p>
+      <div class="links-row">
+        <a class="link-chip" href="https://github.com/ChromeDevTools/chrome-devtools-mcp" target="_blank">
+          <span class="dot"></span>GitHub · chrome-devtools-mcp
+        </a>
+        <a class="link-chip" href="https://developer.chrome.com/blog/chrome-devtools-mcp" target="_blank">
+          <span class="dot"></span>Chrome for Developers · Docs
+        </a>
+        <a class="link-chip" href="https://modelcontextprotocol.io" target="_blank">
+          <span class="dot"></span>modelcontextprotocol.io
+        </a>
+      </div>
+      <div class="code-block" style="width:100%;text-align:left;font-size:13px;">
+        <span class="hl-muted"># Una sola línea para empezar</span><br>
+        <span class="hl-green">npx</span> <span class="hl-blue">chrome-devtools-mcp@latest</span>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /deck -->
+
+<!-- NAV -->
+<nav class="nav" id="nav">
+  <button id="prevBtn" aria-label="Anterior">&#8592;</button>
+  <div class="dots" id="dots"></div>
+  <button id="nextBtn" aria-label="Siguiente">&#8594;</button>
+  <span class="slide-counter" id="counter">1 / 8</span>
+</nav>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const dotsEl  = document.getElementById('dots');
+  const counter = document.getElementById('counter');
+  let current = 0;
+
+  // Build dots
+  slides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.addEventListener('click', () => goTo(i));
+    dotsEl.appendChild(d);
+  });
+
+  function goTo(n) {
+    slides[current].classList.remove('active');
+    dotsEl.children[current].classList.remove('active');
+    current = (n + slides.length) % slides.length;
+    slides[current].classList.add('active');
+    dotsEl.children[current].classList.add('active');
+    counter.textContent = `${current + 1} / ${slides.length}`;
+  }
+
+  document.getElementById('nextBtn').addEventListener('click', () => goTo(current + 1));
+  document.getElementById('prevBtn').addEventListener('click', () => goTo(current - 1));
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown')  goTo(current + 1);
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')    goTo(current - 1);
+  });
+</script>
+</body>
+</html>
